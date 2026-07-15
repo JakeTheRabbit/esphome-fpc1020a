@@ -1,0 +1,291 @@
+# Complete config for an M5Stack Atom Lite + M5Stack Finger unit (FPC1020A)
+# acting as a door fingerprint reader for Home Assistant.
+#
+# - Register prints from the HA device page or http://<device-ip>/
+# - Recognised finger fires esphome.fingerprint_matched {node, user_id, user_name}
+# - No API encryption / OTA password by design (trusted-LAN device) — add them
+#   back if your network warrants it.
+
+esphome:
+  name: door-fingerprint
+  friendly_name: Door Fingerprint
+  # Wire the fingerprint driver to the display entities below.
+  on_boot:
+    then:
+      - lambda: |-
+          id(fpc)->set_match_text(id(last_finger));
+          id(fpc)->set_status_text(id(enroll_status));
+          id(fpc)->set_count_sensor(id(finger_count));
+          id(fpc)->set_matched_bin(id(finger_ok));
+          id(enroll_status).publish_state("Idle");
+
+esp32:
+  board: m5stack-atom
+  framework:
+    type: arduino
+
+external_components:
+  - source: github://JakeTheRabbit/esphome-fpc1020a@main
+    components: [fpc1020a]
+
+logger:
+
+api:
+  reboot_timeout: 0s
+  # allows the driver to fire esphome.fingerprint_* events into HA
+  homeassistant_services: true
+  # exposes enroll/delete as HA actions (esphome.door_fingerprint_*)
+  custom_services: true
+
+ota:
+  - platform: esphome
+
+# Built-in web UI for finger registration without HA:
+# set the slot name, pick the slot, press Enroll.
+web_server:
+  port: 80
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  # Fallback hotspot if WiFi fails
+  ap:
+    ssid: "Door-Fingerprint Fallback"
+    password: "change-me-12345"
+
+captive_portal:
+
+# --- M5Stack Finger unit (FPC1020A) on the Grove port ---
+uart:
+  id: fp_uart
+  rx_pin: GPIO32
+  tx_pin: GPIO26
+  baud_rate: 19200
+
+fpc1020a:
+  id: fpc
+  uart_id: fp_uart
+
+text_sensor:
+  # Name of the last matched finger ("Unknown finger" for rejects)
+  - platform: template
+    name: "Last Fingerprint"
+    id: last_finger
+    icon: mdi:fingerprint
+  # Live walkthrough during enrollment ("Place finger (1/3)" etc.)
+  - platform: template
+    name: "Enrollment Status"
+    id: enroll_status
+    icon: mdi:progress-check
+
+binary_sensor:
+  # Pulses ON for 1.5s on any accepted finger (the event has the details)
+  - platform: template
+    name: "Fingerprint Accepted"
+    id: finger_ok
+    icon: mdi:fingerprint
+
+  # Onboard button (GPIO39)
+  - platform: gpio
+    pin:
+      number: GPIO39
+      inverted: true
+    name: "Button"
+
+sensor:
+  - platform: template
+    name: "Enrolled Fingerprints"
+    id: finger_count
+    icon: mdi:counter
+    accuracy_decimals: 0
+    update_interval: never
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+    entity_category: diagnostic
+  - platform: uptime
+    name: "Uptime"
+    entity_category: diagnostic
+
+# Registration controls: pick a slot, name it, press Enroll, follow
+# "Enrollment Status". Also exposed as HA actions:
+# esphome.door_fingerprint_enroll / _delete_slot / _delete_all.
+number:
+  - platform: template
+    name: "Slot"
+    id: slot_sel
+    min_value: 1
+    max_value: 10
+    step: 1
+    mode: box
+    optimistic: true
+    restore_value: true
+    initial_value: 1
+    icon: mdi:numeric
+
+button:
+  - platform: template
+    name: "Enroll Fingerprint"
+    icon: mdi:fingerprint-plus
+    on_press:
+      - lambda: id(fpc)->start_enroll((int) id(slot_sel).state);
+  - platform: template
+    name: "Delete Slot"
+    icon: mdi:fingerprint-off
+    entity_category: config
+    on_press:
+      - lambda: id(fpc)->delete_slot((int) id(slot_sel).state);
+  - platform: template
+    name: "DELETE ALL Fingerprints"
+    icon: mdi:delete-forever
+    entity_category: config
+    on_press:
+      - lambda: id(fpc)->delete_all();
+  - platform: restart
+    name: "Restart"
+    entity_category: diagnostic
+
+# Editable name per slot — shown in the fired event and "Last Fingerprint".
+text:
+  - platform: template
+    name: "Slot 1 Name"
+    id: slot1_name
+    mode: text
+    max_length: 20
+    optimistic: true
+    restore_value: true
+    initial_value: "Slot 1"
+    entity_category: config
+    on_value:
+      - lambda: id(fpc)->set_slot_name(1, x);
+  - platform: template
+    name: "Slot 2 Name"
+    id: slot2_name
+    mode: text
+    max_length: 20
+    optimistic: true
+    restore_value: true
+    initial_value: "Slot 2"
+    entity_category: config
+    on_value:
+      - lambda: id(fpc)->set_slot_name(2, x);
+  - platform: template
+    name: "Slot 3 Name"
+    id: slot3_name
+    mode: text
+    max_length: 20
+    optimistic: true
+    restore_value: true
+    initial_value: "Slot 3"
+    entity_category: config
+    on_value:
+      - lambda: id(fpc)->set_slot_name(3, x);
+  - platform: template
+    name: "Slot 4 Name"
+    id: slot4_name
+    mode: text
+    max_length: 20
+    optimistic: true
+    restore_value: true
+    initial_value: "Slot 4"
+    entity_category: config
+    on_value:
+      - lambda: id(fpc)->set_slot_name(4, x);
+  - platform: template
+    name: "Slot 5 Name"
+    id: slot5_name
+    mode: text
+    max_length: 20
+    optimistic: true
+    restore_value: true
+    initial_value: "Slot 5"
+    entity_category: config
+    on_value:
+      - lambda: id(fpc)->set_slot_name(5, x);
+  - platform: template
+    name: "Slot 6 Name"
+    id: slot6_name
+    mode: text
+    max_length: 20
+    optimistic: true
+    restore_value: true
+    initial_value: "Slot 6"
+    entity_category: config
+    on_value:
+      - lambda: id(fpc)->set_slot_name(6, x);
+  - platform: template
+    name: "Slot 7 Name"
+    id: slot7_name
+    mode: text
+    max_length: 20
+    optimistic: true
+    restore_value: true
+    initial_value: "Slot 7"
+    entity_category: config
+    on_value:
+      - lambda: id(fpc)->set_slot_name(7, x);
+  - platform: template
+    name: "Slot 8 Name"
+    id: slot8_name
+    mode: text
+    max_length: 20
+    optimistic: true
+    restore_value: true
+    initial_value: "Slot 8"
+    entity_category: config
+    on_value:
+      - lambda: id(fpc)->set_slot_name(8, x);
+  - platform: template
+    name: "Slot 9 Name"
+    id: slot9_name
+    mode: text
+    max_length: 20
+    optimistic: true
+    restore_value: true
+    initial_value: "Slot 9"
+    entity_category: config
+    on_value:
+      - lambda: id(fpc)->set_slot_name(9, x);
+  - platform: template
+    name: "Slot 10 Name"
+    id: slot10_name
+    mode: text
+    max_length: 20
+    optimistic: true
+    restore_value: true
+    initial_value: "Slot 10"
+    entity_category: config
+    on_value:
+      - lambda: id(fpc)->set_slot_name(10, x);
+
+# Onboard SK6812 RGB LED (GPIO27): blue = waiting for finger (enroll),
+# green = accepted, red = rejected/failed, off = idle scanning
+light:
+  - platform: esp32_rmt_led_strip
+    id: status_led
+    internal: true
+    pin: GPIO27
+    num_leds: 1
+    rgb_order: GRB
+    chipset: SK6812
+    default_transition_length: 0s
+
+interval:
+  - interval: 250ms
+    then:
+      - lambda: |-
+          static int last = -1;
+          const int s = id(fpc)->ui_state();
+          if (s == last) return;
+          last = s;
+          if (s == 0) {
+            auto c = id(status_led).turn_off();
+            c.perform();
+            return;
+          }
+          auto c = id(status_led).turn_on();
+          c.set_brightness(0.5f);
+          if (s == 1)      c.set_rgb(0.0f, 0.3f, 1.0f);
+          else if (s == 2) c.set_rgb(0.0f, 1.0f, 0.0f);
+          else             c.set_rgb(1.0f, 0.0f, 0.0f);
+          c.perform();
