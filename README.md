@@ -1,5 +1,9 @@
 # esphome-fpc1020a
 
+<img width="918" height="891" alt="image" src="https://github.com/user-attachments/assets/67813ebc-d734-4725-ac72-615237222151" />
+
+<img width="596" height="875" alt="image" src="https://github.com/user-attachments/assets/d5d2e48a-cfa0-4bed-ae33-bb7800444f32" />
+
 ESPHome external component for the **M5Stack Finger unit (U102)** — an FPC1020A
 capacitive fingerprint reader with an onboard STM32 that speaks the
 Waveshare-style 8-byte UART protocol. Likely also works with the Waveshare UART
